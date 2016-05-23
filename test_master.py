@@ -32,3 +32,21 @@ class TestArguments(unittest.TestCase):
             line = program.communicate()[1]
             self.assertTrue(line)
             self.assertEqual(program.wait(), 1)
+
+    def test_not_a_number_suffix(self):
+        with master_context(("234asdf",), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
+            line = program.communicate()[1]
+            self.assertTrue(line)
+            self.assertEqual(program.wait(), 1)
+
+    def test_number_too_long(self):
+        with master_context(("12345" * 10,), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
+            line = program.communicate()[1]
+            self.assertTrue(line)
+            self.assertEqual(program.wait(), 1)
+
+    def test_not_a_number_at_all(self):
+        with master_context(("ciastka",), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
+            line = program.communicate()[1]
+            self.assertTrue(line)
+            self.assertEqual(program.wait(), 1)
