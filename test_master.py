@@ -1,10 +1,19 @@
 import contextlib
-import unittest
 import subprocess
+import time
+import unittest
+
+from choose_port import choose_port
+from common import mock_client, QUANTUM_SECONDS
+
+PLAYER_HOSTNAME = b"mojavm"
 
 
 class Master(subprocess.Popen):
-    def __init__(self, args=(), *, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL):
+    def __init__(self, args=(), port=None, *, stdout=subprocess.PIPE, stderr=None):
+        if port is not None:
+            assert args == ()
+            args = (str(port),)
         super().__init__(("../zad2/Debug/master",) + args, stdout=stdout, stderr=stderr)
 
 
@@ -19,8 +28,9 @@ def master_context(*args, **kwargs):
 class TestArguments(unittest.TestCase):
     def test_no_parameters(self):
         with master_context(()) as program:
-            line = program.communicate()[0]
-            self.assertTrue(line)
+            time.sleep(1)
+        line = program.stdout.readline()
+        self.assertTrue(line)
 
     def test_one_parameter(self):
         with master_context(("234",)) as program:
@@ -50,3 +60,53 @@ class TestArguments(unittest.TestCase):
             line = program.communicate()[1]
             self.assertTrue(line)
             self.assertEqual(program.wait(), 1)
+
+
+class TestCommands(unittest.TestCase):
+    def test_wrong_command(self):
+        port = choose_port()
+        with master_context((str(port),), stderr=None, stdout=None):
+            time.sleep(QUANTUM_SECONDS)
+            with mock_client(port) as client:
+                client.send(b"WRONG_COMMAND\n")
+                line = client.recv(100)
+                self.assertIn(b"ERROR", line)
+
+                client.send(b"WRONG_COMMAND\n")
+                line = client.recv(100)
+                self.assertIn(b"ERROR", line)
+
+    def test_start_wrong_host(self):
+        port = choose_port()
+        with master_context(port=port):
+            time.sleep(QUANTUM_SECONDS)
+            with mock_client(port) as client:
+                client.send(b"START definitely_nonexistent 1 2 3 4 5 6\n")
+                line = client.recv(100)
+                self.assertIn(b"ERROR", line)
+
+
+class TestIntegration(unittest.TestCase):
+
+    def test_start(self):
+        port = choose_port()
+        with master_context(port=port):
+            time.sleep(QUANTUM_SECONDS)
+            with mock_client(port) as client:
+                client.send(b"START %s p1 p2 p3 p4 p5 p6\n" % PLAYER_HOSTNAME)
+                text = client.recv(100)
+                ok, num_str = text.strip().split()
+                self.assertEqual(ok, b"OK")
+                client_num = int(num_str)
+                time.sleep(QUANTUM_SECONDS)
+                # TODO: assert that ssh was executed with correct parameters
+                # TODO: assert that the client is still running
+                client.send(b"QUIT %d\n" % client_num)
+                time.sleep(QUANTUM_SECONDS)
+                ok = client.recv(100)
+                self.assertEqual(ok, b"OK %d\n" % client_num)
+                # TODO: assert that the client has been stopped
+
+
+if __name__ == '__main__':
+    unittest.main()
