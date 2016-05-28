@@ -22,9 +22,11 @@ class Master(subprocess.Popen):
 @contextlib.contextmanager
 def master_context(*args, **kwargs):
     program = Master(*args, **kwargs)
-    yield program
-    program.kill()
-    program.wait()
+    try:
+        yield program
+    finally:
+        program.kill()
+        program.wait()
 
 
 class TestArguments(unittest.TestCase):
