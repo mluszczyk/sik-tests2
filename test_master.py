@@ -38,7 +38,7 @@ class TestArguments(unittest.TestCase):
         with master_context(("50000",)) as program:
             time.sleep(QUANTUM_SECONDS)
         line = program.stdout.readline()
-        self.assertIn(b"50000", line)
+        self.assertEqual(line, b'')
 
     def test_wrong_number(self):
         with master_context(("234", "234"), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
