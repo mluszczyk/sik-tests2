@@ -7,10 +7,14 @@ import subprocess
 import time
 import unittest
 
+from common import BINARY_PATH
+
+PLAYER_PATH = os.path.join(BINARY_PATH, "player")
+
 
 class Player(subprocess.Popen):
     def __init__(self, args=(), *, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL):
-        super().__init__(("../SK/radio-streaming/player",) + args, stdout=stdout, stderr=stderr)
+        super().__init__((PLAYER_PATH,) + args, stdout=stdout, stderr=stderr)
 
 
 @contextlib.contextmanager

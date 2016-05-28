@@ -1,13 +1,14 @@
 import contextlib
+import os
 import subprocess
 import time
 import unittest
 
 from choose_port import choose_port
-from common import mock_client, QUANTUM_SECONDS
+from common import mock_client, QUANTUM_SECONDS, BINARY_PATH
 
 PLAYER_HOSTNAME = b"mojavm"
-MASTER_PATH = "../zad2/Debug/master"
+MASTER_PATH = os.path.join(BINARY_PATH, "master")
 
 
 class Master(subprocess.Popen):

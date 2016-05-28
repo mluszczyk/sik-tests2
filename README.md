@@ -1,0 +1,1 @@
+Copy `defaults.cfg` to `config.cfg` and set the path to your binaries first!
