@@ -12,3 +12,4 @@ def mock_client(port: int, proto=socket.SOCK_STREAM) -> socket.socket:
 
 WAIT_TIMEOUT = 5  # never wait longer than this and raise exception
 QUANTUM_SECONDS = 0.2
+PLAYER_BOOT_SECONDS = 1

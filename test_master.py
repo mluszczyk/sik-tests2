@@ -7,6 +7,7 @@ from choose_port import choose_port
 from common import mock_client, QUANTUM_SECONDS
 
 PLAYER_HOSTNAME = b"mojavm"
+MASTER_PATH = "../zad2/Debug/master"
 
 
 class Master(subprocess.Popen):
@@ -14,7 +15,7 @@ class Master(subprocess.Popen):
         if port is not None:
             assert args == ()
             args = (str(port),)
-        super().__init__(("../zad2/Debug/master",) + args, stdout=stdout, stderr=stderr)
+        super().__init__((MASTER_PATH,) + args, stdout=stdout, stderr=stderr)
 
 
 @contextlib.contextmanager
@@ -28,38 +29,39 @@ def master_context(*args, **kwargs):
 class TestArguments(unittest.TestCase):
     def test_no_parameters(self):
         with master_context(()) as program:
-            time.sleep(1)
+            time.sleep(QUANTUM_SECONDS)
         line = program.stdout.readline()
         self.assertTrue(line)
 
     def test_one_parameter(self):
-        with master_context(("234",)) as program:
-            line = program.communicate()[0]
-            self.assertIn(b"234", line)
+        with master_context(("50000",)) as program:
+            time.sleep(QUANTUM_SECONDS)
+        line = program.stdout.readline()
+        self.assertIn(b"50000", line)
 
     def test_wrong_number(self):
         with master_context(("234", "234"), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
-            line = program.communicate()[1]
+            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
             self.assertTrue(line)
-            self.assertEqual(program.wait(), 1)
+            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_not_a_number_suffix(self):
         with master_context(("234asdf",), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
-            line = program.communicate()[1]
+            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
             self.assertTrue(line)
-            self.assertEqual(program.wait(), 1)
+            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_number_too_long(self):
         with master_context(("12345" * 10,), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
-            line = program.communicate()[1]
+            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
             self.assertTrue(line)
-            self.assertEqual(program.wait(), 1)
+            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_not_a_number_at_all(self):
         with master_context(("ciastka",), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
-            line = program.communicate()[1]
+            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
             self.assertTrue(line)
-            self.assertEqual(program.wait(), 1)
+            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
 
 class TestCommands(unittest.TestCase):
