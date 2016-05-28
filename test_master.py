@@ -72,11 +72,11 @@ class TestCommands(unittest.TestCase):
             time.sleep(QUANTUM_SECONDS)
             with mock_client(port) as client:
                 client.send(b"WRONG_COMMAND\n")
-                line = client.recv(100)
+                line = client.readline()
                 self.assertIn(b"ERROR", line)
 
                 client.send(b"WRONG_COMMAND\n")
-                line = client.recv(100)
+                line = client.readline()
                 self.assertIn(b"ERROR", line)
 
     def test_start_wrong_host(self):
@@ -85,7 +85,7 @@ class TestCommands(unittest.TestCase):
             time.sleep(QUANTUM_SECONDS)
             with mock_client(port) as client:
                 client.send(b"START definitely_nonexistent 1 2 3 4 5 6\n")
-                line = client.recv(100)
+                line = client.readline()
                 self.assertIn(b"ERROR", line)
 
 
@@ -97,7 +97,7 @@ class TestIntegration(unittest.TestCase):
             time.sleep(QUANTUM_SECONDS)
             with mock_client(port) as client:
                 client.send(b"START %s p1 p2 p3 p4 p5 p6\n" % PLAYER_HOSTNAME)
-                text = client.recv(100)
+                text = client.readline()
                 ok, num_str = text.strip().split()
                 self.assertEqual(ok, b"OK")
                 client_num = int(num_str)
@@ -106,7 +106,7 @@ class TestIntegration(unittest.TestCase):
                 # TODO: assert that the client is still running
                 client.send(b"QUIT %d\n" % client_num)
                 time.sleep(QUANTUM_SECONDS)
-                ok = client.recv(100)
+                ok = client.readline()
                 self.assertEqual(ok, b"OK %d\n" % client_num)
                 # TODO: assert that the client has been stopped
 
