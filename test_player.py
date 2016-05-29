@@ -86,7 +86,7 @@ class TestArguments(unittest.TestCase):
                     self.assertTrue(line)
                     self.assertNotEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
-
+class TestCommands(unittest.TestCase):
     def test_quit_command(self):
         valid_parameters = VALID_ARGS()[1]
 
@@ -197,6 +197,12 @@ class TestArguments(unittest.TestCase):
                 self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
 
+class TestBehaviour(unittest.TestCase):
+    def assertAllZ(self, filename):
+        with open(filename, 'r') as f:
+            self.assertEqual(len(f.read().replace('Z', '')), 0)
+
+
     def test_play_pause_command(self):
         valid_parameters = VALID_ARGS()[2]
 
@@ -261,6 +267,7 @@ class TestArguments(unittest.TestCase):
 
             time.sleep(QUANTUM_SECONDS) # flush can take a while :C
             self.assertEqual(os.path.getsize(valid_parameters[3]), 16000)
+            self.assertAllZ(valid_parameters[3])
 
             program.kill()
             program.wait()
@@ -278,6 +285,7 @@ class TestArguments(unittest.TestCase):
 
             time.sleep(QUANTUM_SECONDS)
             self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 1000)
+            self.assertAllZ(valid_parameters[3])
 
             program.kill()
             program.wait()
@@ -296,6 +304,7 @@ class TestArguments(unittest.TestCase):
 
             time.sleep(QUANTUM_SECONDS)
             self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 1000)
+            self.assertAllZ(valid_parameters[3])
 
             program.kill()
             program.wait()
