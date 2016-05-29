@@ -6,10 +6,11 @@ import string
 import subprocess
 import time
 import unittest
+import struct
 
 from choose_port import choose_port
 from common import (BINARY_PATH, PLAYER_BOOT_SECONDS, QUANTUM_SECONDS,
-                    WAIT_TIMEOUT)
+                    WAIT_TIMEOUT, mysend)
 
 PLAYER_PATH = os.path.join(BINARY_PATH, "player")
 
@@ -128,12 +129,34 @@ class TestArguments(unittest.TestCase):
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(b'TITLE', ('127.0.0.1', int(valid_parameters[4])))
+
+            time.sleep(QUANTUM_SECONDS)
+
             response = sock.recvfrom(1000)
             sock.close()
 
             self.assertTrue(response[0])
             self.assertEqual(response[1], ('127.0.0.1', int(valid_parameters[4])))
 
+    def test_title_command_with_custom_server(self):
+        valid_parameters = self.parameters[5]
+        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
+            mysend(sock, b'ICY 200 OK\r\n')
+            mysend(sock, b'icy-metaint:16\r\n')
+            mysend(sock, b'\r\n')
+            mysend(sock, ((b'Z' * 16) + (b'\x02') + b"StreamTitle='title of the song';") * 1000)
+
+            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
+
+            command_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            command_sock.sendto(b'TITLE', ('127.0.0.1', int(valid_parameters[4])))
+
+            time.sleep(QUANTUM_SECONDS)
+
+            response = command_sock.recvfrom(1000)
+            command_sock.close()
+
+            self.assertIn(response[0], [b"title of the song", b"'title of the song'"])
 
     def test_no_meta_data(self):
         valid_parameters = self.parameters[1]
@@ -261,21 +284,36 @@ class TestArguments(unittest.TestCase):
             program.wait()
             os.remove(valid_parameters[3])
 
-    # def test_saving_data_with_meta(self):
-    #     valid_parameters = self.parameters[7]
-    #     with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
-    #         sock.send(b'ICY 200 OK\r\n')
-    #         sock.send(b'icy-metaint:16\r\n')
-    #         sock.send(b'\r\n')
-    #         sock.send(((b'Z' * 16) + (b'\x00')) * 1000)
-    #
-    #         time.sleep(QUANTUM_SECONDS)
-    #         self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 1000)
-    #
-    #         program.kill()
-    #         program.wait()
-    #         os.remove(valid_parameters[3])
+    def test_saving_data_with_zerometa(self):
+        valid_parameters = self.parameters[7]
+        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
+            sock.send(b'ICY 200 OK\r\n')
+            sock.send(b'icy-metaint:16\r\n')
+            sock.send(b'\r\n')
+            sock.send(((b'Z' * 16) + (b'\x00')) * 10000)
 
+            time.sleep(QUANTUM_SECONDS)
+            self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 10000)
+
+            program.kill()
+            program.wait()
+            os.remove(valid_parameters[3])
+
+
+    def test_saving_data_with_meta(self):
+        valid_parameters = self.parameters[7]
+        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
+            sock.send(b'ICY 200 OK\r\n')
+            sock.send(b'icy-metaint:16\r\n')
+            sock.send(b'\r\n')
+            sock.send(((b'Z' * 16) + (b'\x02') + b"StreamTitle='title of the song';") * 1000)
+
+            time.sleep(QUANTUM_SECONDS)
+            self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 1000)
+
+            program.kill()
+            program.wait()
+            os.remove(valid_parameters[3])
 
     def test_server_close_connection_when_header(self):
         valid_parameters = self.parameters[5]
