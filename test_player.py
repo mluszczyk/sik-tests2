@@ -271,16 +271,6 @@ class TestArguments(unittest.TestCase):
             self.assertTrue(line)
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
-    def test_no_metaint_in_header(self):
-        valid_parameters = self.parameters[5]
-        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
-            sock.send(b'ICY 200 OK\r\n')
-            sock.send(b'\r\n')
-
-            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-            self.assertTrue(line)
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
-
     def test_saving_data_without_meta(self):
         valid_parameters = self.parameters[6]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
