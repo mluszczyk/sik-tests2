@@ -12,7 +12,6 @@ cp.read([os.path.join(BASE_DIR, "defaults.cfg"), os.path.join(BASE_DIR, "config.
 
 WAIT_TIMEOUT = 5  # never wait longer than this and raise exception
 QUANTUM_SECONDS = 0.2
-PLAYER_BOOT_SECONDS = 1
 BINARY_PATH = cp.get("tests", "binary_path")
 PARAMS = 6
 

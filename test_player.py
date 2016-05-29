@@ -9,7 +9,7 @@ import time
 import unittest
 
 from choose_port import choose_port
-from common import (BINARY_PATH, PLAYER_BOOT_SECONDS, QUANTUM_SECONDS,
+from common import (BINARY_PATH, QUANTUM_SECONDS,
                     WAIT_TIMEOUT, VALID_ARGS, INVALID_ARG_VALUES, PARAMS)
 
 PLAYER_PATH = os.path.join(BINARY_PATH, "player")
