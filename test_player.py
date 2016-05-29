@@ -24,10 +24,11 @@ def player_context(*args, **kwargs):
     program = Player(*args, **kwargs)
     time.sleep(QUANTUM_SECONDS)
 
-    yield program
-
-    program.kill()
-    program.wait()
+    try:
+        yield program
+    finally:
+        program.kill()
+        program.wait()
 
 @contextlib.contextmanager
 def streamer_server(*args, **kwargs):
@@ -37,9 +38,10 @@ def streamer_server(*args, **kwargs):
 
     with player_context(*args, **kwargs) as program:
         client_sock, client_addr = server_sock.accept()
-        yield (client_sock, program)
-
-        client_sock.close()
+        try:
+            yield (client_sock, program)
+        finally:
+            client_sock.close()
 
     server_sock.close()
 
@@ -60,7 +62,7 @@ class TestArguments(unittest.TestCase):
         ]
 
         self.wrong_parameters = [
-            ["/", "sdfsdfa", "stream3.polskieradio.", "google.pl"],
+            ["/", "sdfsdfa", "stream3.polskieradio."],
             ["/lol", "/w/"],
             ["89043284023823099", "-1", "0", "r", "65538", " "],
             ["",],
