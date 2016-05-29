@@ -91,7 +91,7 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[1]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
+            time.sleep(PLAYER_BOOT_SECONDS)
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(WAIT_TIMEOUT)
@@ -105,7 +105,7 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
+            time.sleep(PLAYER_BOOT_SECONDS)
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(WAIT_TIMEOUT)
@@ -152,7 +152,7 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[1]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
+            time.sleep(PLAYER_BOOT_SECONDS)
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(b'TITLE', ('127.0.0.1', int(valid_parameters[4])))
@@ -166,7 +166,7 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
+            time.sleep(PLAYER_BOOT_SECONDS)
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             for _ in range(0, 10000):
@@ -183,7 +183,7 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
+            time.sleep(PLAYER_BOOT_SECONDS)
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             for _ in range(0, 10000):
@@ -207,26 +207,26 @@ class TestBehaviour(unittest.TestCase):
         valid_parameters = VALID_ARGS()[2]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
+            time.sleep(PLAYER_BOOT_SECONDS)
 
-            # sprawdzamy czy sie plik napelnia
+            # check if file is filling up
             size = os.path.getsize(valid_parameters[3])
             time.sleep(QUANTUM_SECONDS)
             self.assertNotEqual(size, os.path.getsize(valid_parameters[3]))
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(b'PAUSE', ('127.0.0.1', int(valid_parameters[4])))
-            time.sleep(QUANTUM_SECONDS) # niech złapie komende
+            time.sleep(QUANTUM_SECONDS) # wait for player to parse command
 
-            # sprawdzamy czy plik przestal sie naplecia
+            # check if file has stopped filling up
             size = os.path.getsize(valid_parameters[3])
             time.sleep(QUANTUM_SECONDS)
             self.assertEqual(size, os.path.getsize(valid_parameters[3]))
 
             sock.sendto(b'PLAY', ('127.0.0.1', int(valid_parameters[4])))
-            time.sleep(QUANTUM_SECONDS) # niech złapie komende
+            time.sleep(QUANTUM_SECONDS) # wait for player to parse command
 
-            # sprawdzamy czy znowu plik sie napelnia
+            # check if file is filling up again
             size = os.path.getsize(valid_parameters[3])
             time.sleep(QUANTUM_SECONDS)
             self.assertNotEqual(size, os.path.getsize(valid_parameters[3]))
