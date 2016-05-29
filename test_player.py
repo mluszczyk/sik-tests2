@@ -48,14 +48,14 @@ class TestArguments(unittest.TestCase):
         self.PARAMS = 6
 
         self.parameters = [
-            ("ant-waw-01.cdn.eurozet.pl", "/", "8602", "-", "50000", "yes"),
-            ("ant-waw-01.cdn.eurozet.pl", "/", "8602", "-", "50000", "no"),
-            ("ant-waw-01.cdn.eurozet.pl", "/", "8602", "test3.mp3", "50000", "no"),
-            ("stream3.polskieradio.pl", "/", "8904", "-", "32443", "no"),
-            ("localhost", "/", str(choose_port()), "-", "32443", "no"),
-            ("localhost", "/", str(choose_port()), "-", "32443", "yes"),
-            ("localhost", "/", str(choose_port()), "test3.mp3", "32443", "no"),
-            ("localhost", "/", str(choose_port()), "test3.mp3", "32443", "yes"),
+            ("ant-waw-01.cdn.eurozet.pl", "/", "8602", "-", str(choose_port()), "yes"),
+            ("ant-waw-01.cdn.eurozet.pl", "/", "8602", "-", str(choose_port()), "no"),
+            ("ant-waw-01.cdn.eurozet.pl", "/", "8602", "test3.mp3", str(choose_port()), "no"),
+            ("stream3.polskieradio.pl", "/", "8904", "-", str(choose_port()), "no"),
+            ("localhost", "/", str(choose_port()), "-", str(choose_port()), "no"),
+            ("localhost", "/", str(choose_port()), "-", str(choose_port()), "yes"),
+            ("localhost", "/", str(choose_port()), "test3.mp3", str(choose_port()), "no"),
+            ("localhost", "/", str(choose_port()), "test3.mp3", str(choose_port()), "yes"),
         ]
 
         self.wrong_parameters = [
