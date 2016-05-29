@@ -10,7 +10,7 @@ import unittest
 
 from choose_port import choose_port
 from common import (BINARY_PATH, PLAYER_BOOT_SECONDS, QUANTUM_SECONDS,
-                    WAIT_TIMEOUT)
+                    WAIT_TIMEOUT, VALID_ARGS, INVALID_ARG_VALUES, PARAMS)
 
 PLAYER_PATH = os.path.join(BINARY_PATH, "player")
 
@@ -24,10 +24,11 @@ def player_context(*args, **kwargs):
     program = Player(*args, **kwargs)
     time.sleep(QUANTUM_SECONDS)
 
-    yield program
-
-    program.kill()
-    program.wait()
+    try:
+        yield program
+    finally:
+        program.kill()
+        program.wait()
 
 @contextlib.contextmanager
 def streamer_server(*args, **kwargs):
@@ -37,39 +38,17 @@ def streamer_server(*args, **kwargs):
 
     with player_context(*args, **kwargs) as program:
         client_sock, client_addr = server_sock.accept()
-        yield (client_sock, program)
-
-        client_sock.close()
+        try:
+            yield (client_sock, program)
+        finally:
+            client_sock.close()
 
     server_sock.close()
 
 
 class TestArguments(unittest.TestCase):
-    def setUp(self):
-        self.PARAMS = 6
-
-        self.parameters = [
-            ("ant-waw-01.cdn.eurozet.pl", "/", "8602", "-", str(choose_port()), "yes"),
-            ("ant-waw-01.cdn.eurozet.pl", "/", "8602", "-", str(choose_port()), "no"),
-            ("ant-waw-01.cdn.eurozet.pl", "/", "8602", "test3.mp3", str(choose_port()), "no"),
-            ("stream3.polskieradio.pl", "/", "8904", "-", str(choose_port()), "no"),
-            ("localhost", "/", str(choose_port()), "-", str(choose_port()), "no"),
-            ("localhost", "/", str(choose_port()), "-", str(choose_port()), "yes"),
-            ("localhost", "/", str(choose_port()), "test3.mp3", str(choose_port()), "no"),
-            ("localhost", "/", str(choose_port()), "test3.mp3", str(choose_port()), "yes"),
-        ]
-
-        self.wrong_parameters = [
-            ["/", "sdfsdfa", "stream3.polskieradio."],
-            ["/lol", "/w/"],
-            ["89043284023823099", "-1", "0", "r", "65538", " "],
-            ["",],
-            ["502300124323423234", "wrr", "0", "-1", "65538", "", " "],
-            ["tak", "nie", "", "-", "0", "1"],
-        ]
-
     def test_valid(self):
-        with player_context(self.parameters[3], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
+        with player_context(VALID_ARGS()[3], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
             with self.assertRaises(subprocess.TimeoutExpired):
                 self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
@@ -80,25 +59,25 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_wrong_number_of_parameters(self):
-        for num in range(0, self.PARAMS):
-            tmp_parameters = tuple(self.parameters[0][0:num])
+        for num in range(0, PARAMS):
+            tmp_parameters = tuple(VALID_ARGS()[0][0:num])
             with player_context(tmp_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
                 line = program.communicate(timeout=QUANTUM_SECONDS)[1]
                 self.assertTrue(line)
                 self.assertNotEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
-        for num in range(self.PARAMS + 1, self.PARAMS + 5):
-            tmp_parameters = tuple(self.parameters[0][0:self.PARAMS]) + tuple(["0"] * (num - self.PARAMS))
+        for num in range(PARAMS + 1, PARAMS + 5):
+            tmp_parameters = tuple(VALID_ARGS()[0][0:PARAMS]) + tuple(["0"] * (num - PARAMS))
             with player_context(tmp_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
                 line = program.communicate(timeout=QUANTUM_SECONDS)[1]
                 self.assertTrue(line)
                 self.assertNotEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
     def test_wrong_parameters(self):
-        valid_parameters = list(self.parameters[0])
+        valid_parameters = list(VALID_ARGS()[0])
 
-        for num in range(0, self.PARAMS):
-            for wrong_param in self.wrong_parameters[num]:
+        for num in range(0, PARAMS):
+            for wrong_param in INVALID_ARG_VALUES[num]:
                 tmp_parameters = valid_parameters.copy()
                 tmp_parameters[num] = wrong_param
 
@@ -109,7 +88,7 @@ class TestArguments(unittest.TestCase):
 
 
     def test_quit_command(self):
-        valid_parameters = self.parameters[1]
+        valid_parameters = VALID_ARGS()[1]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
             time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
@@ -123,7 +102,7 @@ class TestArguments(unittest.TestCase):
 
 
     def test_title_command(self):
-        valid_parameters = self.parameters[0]
+        valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
             time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
@@ -141,7 +120,7 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(response[1], ('127.0.0.1', int(valid_parameters[4])))
 
     def test_title_command_with_custom_server(self):
-        valid_parameters = self.parameters[5]
+        valid_parameters = VALID_ARGS()[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'icy-metaint:16\r\n')
@@ -170,7 +149,7 @@ class TestArguments(unittest.TestCase):
             self.assertIn(response[0], [b"title of the song", b"'title of the song'"])
 
     def test_no_meta_data(self):
-        valid_parameters = self.parameters[1]
+        valid_parameters = VALID_ARGS()[1]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
             time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
@@ -184,7 +163,7 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(response[1], ('127.0.0.1', int(valid_parameters[4])))
 
     def test_invalid_command(self):
-        valid_parameters = self.parameters[0]
+        valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
             time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
@@ -201,7 +180,7 @@ class TestArguments(unittest.TestCase):
 
 
     def test_spam_command(self):
-        valid_parameters = self.parameters[0]
+        valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
             time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
@@ -219,7 +198,7 @@ class TestArguments(unittest.TestCase):
 
 
     def test_play_pause_command(self):
-        valid_parameters = self.parameters[2]
+        valid_parameters = VALID_ARGS()[2]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
             time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
@@ -253,7 +232,7 @@ class TestArguments(unittest.TestCase):
             os.remove(valid_parameters[3])
 
     def test_timeout_response(self):
-        valid_parameters = self.parameters[4]
+        valid_parameters = VALID_ARGS()[4]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             time.sleep(WAIT_TIMEOUT)
 
@@ -262,7 +241,7 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_invalid_response_streamer(self):
-        valid_parameters = self.parameters[4]
+        valid_parameters = VALID_ARGS()[4]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             sock.send(b'ICY 404 OK\r\n')
             sock.send(b'\r\n')
@@ -272,7 +251,7 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_saving_data_without_meta(self):
-        valid_parameters = self.parameters[6]
+        valid_parameters = VALID_ARGS()[6]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'\r\n')
@@ -288,7 +267,7 @@ class TestArguments(unittest.TestCase):
             os.remove(valid_parameters[3])
 
     def test_saving_data_with_zerometa(self):
-        valid_parameters = self.parameters[7]
+        valid_parameters = VALID_ARGS()[7]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'icy-metaint:16\r\n')
@@ -306,7 +285,7 @@ class TestArguments(unittest.TestCase):
 
 
     def test_saving_data_with_meta(self):
-        valid_parameters = self.parameters[7]
+        valid_parameters = VALID_ARGS()[7]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'icy-metaint:16\r\n')
@@ -323,13 +302,13 @@ class TestArguments(unittest.TestCase):
             os.remove(valid_parameters[3])
 
     def test_server_close_connection_when_header(self):
-        valid_parameters = self.parameters[5]
+        valid_parameters = VALID_ARGS()[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
             sock.close()
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_server_close_connection_when_sending_data(self):
-        valid_parameters = self.parameters[5]
+        valid_parameters = VALID_ARGS()[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'icy-metaint:16\r\n')
@@ -340,7 +319,7 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
     def test_server_close_connection_when_metadata(self):
-        valid_parameters = self.parameters[5]
+        valid_parameters = VALID_ARGS()[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'icy-metaint:16\r\n')
@@ -354,7 +333,7 @@ class TestArguments(unittest.TestCase):
 
 
     def test_timeout_when_header(self):
-        valid_parameters = self.parameters[5]
+        valid_parameters = VALID_ARGS()[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             time.sleep(WAIT_TIMEOUT)
 
@@ -363,7 +342,7 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_timeout_when_sending_data(self):
-        valid_parameters = self.parameters[5]
+        valid_parameters = VALID_ARGS()[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'icy-metaint:16\r\n')
@@ -377,7 +356,7 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_timeout_when_metadata(self):
-        valid_parameters = self.parameters[5]
+        valid_parameters = VALID_ARGS()[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'icy-metaint:16\r\n')
