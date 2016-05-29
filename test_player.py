@@ -38,6 +38,7 @@ def streamer_server(*args, **kwargs):
 
     with player_context(*args, **kwargs) as program:
         client_sock, client_addr = server_sock.accept()
+
         try:
             yield (client_sock, program)
         finally:
@@ -59,14 +60,14 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_wrong_number_of_parameters(self):
-        for num in range(0, PARAMS):
+        for num in range(1, PARAMS):
             tmp_parameters = tuple(VALID_ARGS()[0][0:num])
             with player_context(tmp_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
                 line = program.communicate(timeout=QUANTUM_SECONDS)[1]
                 self.assertTrue(line)
                 self.assertNotEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
-        for num in range(PARAMS + 1, PARAMS + 5):
+        for num in range(PARAMS + 1, PARAMS + 3):
             tmp_parameters = tuple(VALID_ARGS()[0][0:PARAMS]) + tuple(["0"] * (num - PARAMS))
             with player_context(tmp_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
                 line = program.communicate(timeout=QUANTUM_SECONDS)[1]
@@ -91,8 +92,6 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[1]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS)
-
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(WAIT_TIMEOUT)
             sock.sendto(b'QUIT', ('localhost', int(valid_parameters[4])))
@@ -105,8 +104,6 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS)
-
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(WAIT_TIMEOUT)
             sock.sendto(b'TITLE', ('127.0.0.1', int(valid_parameters[4])))
@@ -152,8 +149,6 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[1]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS)
-
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(b'TITLE', ('127.0.0.1', int(valid_parameters[4])))
             response = sock.recvfrom(1000)
@@ -166,8 +161,6 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS)
-
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             for _ in range(0, 10000):
                 command = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(random.randint(4, 6)))
@@ -183,8 +176,6 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS)
-
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             for _ in range(0, 10000):
                 sock.sendto(b'PAUSE', ('127.0.0.1', int(valid_parameters[4])))
@@ -207,8 +198,6 @@ class TestBehaviour(unittest.TestCase):
         valid_parameters = VALID_ARGS()[2]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS)
-
             # check if file is filling up
             size = os.path.getsize(valid_parameters[3])
             time.sleep(QUANTUM_SECONDS)
