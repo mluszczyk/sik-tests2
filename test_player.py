@@ -3,14 +3,14 @@ import os
 import random
 import socket
 import string
+import struct
 import subprocess
 import time
 import unittest
-import struct
 
 from choose_port import choose_port
 from common import (BINARY_PATH, PLAYER_BOOT_SECONDS, QUANTUM_SECONDS,
-                    WAIT_TIMEOUT, mysend)
+                    WAIT_TIMEOUT)
 
 PLAYER_PATH = os.path.join(BINARY_PATH, "player")
 
@@ -141,19 +141,28 @@ class TestArguments(unittest.TestCase):
     def test_title_command_with_custom_server(self):
         valid_parameters = self.parameters[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
-            mysend(sock, b'ICY 200 OK\r\n')
-            mysend(sock, b'icy-metaint:16\r\n')
-            mysend(sock, b'\r\n')
-            mysend(sock, ((b'Z' * 16) + (b'\x02') + b"StreamTitle='title of the song';") * 1000)
+            sock.send(b'ICY 200 OK\r\n')
+            sock.send(b'icy-metaint:16\r\n')
+            sock.send(b'\r\n')
 
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
+            for _ in range(0, 10):
+                sock.send(b'Z' * 16)
+                sock.send(b'\x00')
+
+            sock.send(b'Z' * 16)
+            sock.send(b'\x02')
+            sock.send(b"StreamTitle='title of the song';")
+
+            for _ in range(0, 10):
+                sock.send(b'Z' * 16)
+                sock.send(b'\x00')
 
             command_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             command_sock.sendto(b'TITLE', ('127.0.0.1', int(valid_parameters[4])))
 
             time.sleep(QUANTUM_SECONDS)
 
-            response = command_sock.recvfrom(1000)
+            response = command_sock.recvfrom(100)
             command_sock.close()
 
             self.assertIn(response[0], [b"title of the song", b"'title of the song'"])
@@ -275,10 +284,12 @@ class TestArguments(unittest.TestCase):
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'\r\n')
-            sock.send(b'Z' * 160000)
+
+            for _ in range(0, 1000):
+                sock.send(b'Z' * 16)
 
             time.sleep(QUANTUM_SECONDS) # flush can take a while :C
-            self.assertEqual(os.path.getsize(valid_parameters[3]), 160000)
+            self.assertEqual(os.path.getsize(valid_parameters[3]), 16000)
 
             program.kill()
             program.wait()
@@ -290,10 +301,12 @@ class TestArguments(unittest.TestCase):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'icy-metaint:16\r\n')
             sock.send(b'\r\n')
-            sock.send(((b'Z' * 16) + (b'\x00')) * 10000)
+
+            for _ in range(0, 1000):
+                sock.send(((b'Z' * 16) + (b'\x00')))
 
             time.sleep(QUANTUM_SECONDS)
-            self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 10000)
+            self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 1000)
 
             program.kill()
             program.wait()
@@ -306,7 +319,9 @@ class TestArguments(unittest.TestCase):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'icy-metaint:16\r\n')
             sock.send(b'\r\n')
-            sock.send(((b'Z' * 16) + (b'\x02') + b"StreamTitle='title of the song';") * 1000)
+
+            for _ in range(0, 1000):
+                sock.send(((b'Z' * 16) + (b'\x02') + b"StreamTitle='title of the song';"))
 
             time.sleep(QUANTUM_SECONDS)
             self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 1000)
