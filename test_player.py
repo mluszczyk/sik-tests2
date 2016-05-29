@@ -115,6 +115,7 @@ class TestArguments(unittest.TestCase):
             time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(WAIT_TIMEOUT)
             sock.sendto(b'QUIT', ('localhost', int(valid_parameters[4])))
             sock.close()
 
@@ -128,6 +129,7 @@ class TestArguments(unittest.TestCase):
             time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(WAIT_TIMEOUT)
             sock.sendto(b'TITLE', ('127.0.0.1', int(valid_parameters[4])))
 
             time.sleep(QUANTUM_SECONDS)
@@ -281,7 +283,7 @@ class TestArguments(unittest.TestCase):
 
     def test_saving_data_without_meta(self):
         valid_parameters = self.parameters[6]
-        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
+        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             sock.send(b'ICY 200 OK\r\n')
             sock.send(b'\r\n')
 
@@ -334,7 +336,7 @@ class TestArguments(unittest.TestCase):
         valid_parameters = self.parameters[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
             sock.close()
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
+            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_server_close_connection_when_sending_data(self):
         valid_parameters = self.parameters[5]
@@ -401,4 +403,4 @@ class TestArguments(unittest.TestCase):
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(warnings='ignore')
