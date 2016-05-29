@@ -60,7 +60,7 @@ class TestArguments(unittest.TestCase):
         ]
 
         self.wrong_parameters = [
-            ["/", "sdfsdfa", "stream3.polskieradio."],
+            ["/", "sdfsdfa", "stream3.polskieradio.", "google.pl"],
             ["/lol", "/w/"],
             ["89043284023823099", "-1", "0", "r", "65538", " "],
             ["",],
