@@ -85,9 +85,10 @@ class TestArguments(unittest.TestCase):
 
 class TestCommands(unittest.TestCase):
     def assertOK(self, line):
-        self.assertTrue(line.startswith(b"OK "))
-        player_id = int(line[3:]) # make sure the rest is convertible to int
-        return player_id
+        splited = line.split()
+        self.assertEqual(len(splited), 2)
+        self.assertEqual(splited[0], b"OK")
+        return splited[1]
 
     def test_wrong_command(self):
         with master_and_mock_client() as client:
@@ -109,9 +110,7 @@ class TestCommands(unittest.TestCase):
         with master_and_mock_client() as client:
             args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
             client.send(b"START %s %s\n" % (PLAYER_HOSTNAME, args))
-            line = client.readline()
-            self.assertTrue(line.startswith(b"OK "))
-            player_id = int(line[3:]) # make sure the rest is convertible to int
+            self.assertOK(client.readline())
 
     def test_start_with_large_spaces(self):
         with master_and_mock_client() as client:
@@ -124,7 +123,7 @@ class TestCommands(unittest.TestCase):
             args = bytes("     ".join(VALID_ARGS()[8]), "utf-8")
             client.send(b"START   %s   %s\n" % (PLAYER_HOSTNAME, args))
             player_id = self.assertOK(client.readline())
-            client.send(b"QUIT %d\n" % player_id)
+            client.send(b"QUIT %s\n" % player_id)
             time.sleep(QUANTUM_SECONDS)
             self.assertEqual(subprocess.check_output(["pidof", "player"]), b"")
 
@@ -148,7 +147,7 @@ class TestCommands(unittest.TestCase):
             time.sleep(QUANTUM_SECONDS)
             self.assertEqual(subprocess.call(["killall", "player"]), 0)
             line = client.readline()
-            self.assertTrue(line.startswith(b"ERROR %d" % player_id))
+            self.assertTrue(line.startswith(b"ERROR %s" % player_id))
 
 
 class TestIntegration(unittest.TestCase):

@@ -9,8 +9,8 @@ import time
 import unittest
 
 from choose_port import choose_port
-from common import (BINARY_PATH, PLAYER_BOOT_SECONDS, QUANTUM_SECONDS,
-                    WAIT_TIMEOUT, VALID_ARGS, INVALID_ARG_VALUES, PARAMS)
+from common import (BINARY_PATH, INVALID_ARG_VALUES, LONG_PAUSE, PARAMS,
+                    QUANTUM_SECONDS, VALID_ARGS, WAIT_TIMEOUT)
 
 PLAYER_PATH = os.path.join(BINARY_PATH, "player")
 
@@ -27,8 +27,11 @@ def player_context(*args, **kwargs):
     try:
         yield program
     finally:
-        program.kill()
-        program.wait()
+        try:
+            program.kill()
+            program.wait()
+        except:
+            pass
 
 @contextlib.contextmanager
 def streamer_server(*args, **kwargs):
@@ -38,6 +41,7 @@ def streamer_server(*args, **kwargs):
 
     with player_context(*args, **kwargs) as program:
         client_sock, client_addr = server_sock.accept()
+
         try:
             yield (client_sock, program)
         finally:
@@ -47,31 +51,30 @@ def streamer_server(*args, **kwargs):
 
 
 class TestArguments(unittest.TestCase):
+    def assertExitFailure(self, program):
+        line = program.communicate(timeout=QUANTUM_SECONDS)[1]
+        self.assertTrue(line)
+        self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+
     def test_valid(self):
-        with player_context(VALID_ARGS()[3], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
+        with player_context(VALID_ARGS()[3], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
             with self.assertRaises(subprocess.TimeoutExpired):
-                self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+                self.assertExitFailure(program)
 
     def test_no_parameters(self):
         with player_context((), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
-            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-            self.assertTrue(line)
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+            self.assertExitFailure(program)
 
     def test_wrong_number_of_parameters(self):
-        for num in range(0, PARAMS):
+        for num in range(1, PARAMS):
             tmp_parameters = tuple(VALID_ARGS()[0][0:num])
             with player_context(tmp_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
-                line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-                self.assertTrue(line)
-                self.assertNotEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
+                self.assertExitFailure(program)
 
-        for num in range(PARAMS + 1, PARAMS + 5):
+        for num in range(PARAMS + 1, PARAMS + 3):
             tmp_parameters = tuple(VALID_ARGS()[0][0:PARAMS]) + tuple(["0"] * (num - PARAMS))
             with player_context(tmp_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
-                line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-                self.assertTrue(line)
-                self.assertNotEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
+                self.assertExitFailure(program)
 
     def test_wrong_parameters(self):
         valid_parameters = list(VALID_ARGS()[0])
@@ -82,17 +85,13 @@ class TestArguments(unittest.TestCase):
                 tmp_parameters[num] = wrong_param
 
                 with player_context(tuple(tmp_parameters), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
-                    line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-                    self.assertTrue(line)
-                    self.assertNotEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
+                    self.assertExitFailure(program)
 
 class TestCommands(unittest.TestCase):
     def test_quit_command(self):
         valid_parameters = VALID_ARGS()[1]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
-
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(WAIT_TIMEOUT)
             sock.sendto(b'QUIT', ('localhost', int(valid_parameters[4])))
@@ -105,7 +104,7 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
+            time.sleep(LONG_PAUSE)
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(WAIT_TIMEOUT)
@@ -113,7 +112,7 @@ class TestCommands(unittest.TestCase):
 
             time.sleep(QUANTUM_SECONDS)
 
-            response = sock.recvfrom(1000)
+            response = sock.recvfrom(100)
             sock.close()
 
             self.assertTrue(response[0])
@@ -138,10 +137,12 @@ class TestCommands(unittest.TestCase):
                 sock.send(b'Z' * 16)
                 sock.send(b'\x00')
 
+            time.sleep(LONG_PAUSE)
+
             command_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             command_sock.sendto(b'TITLE', ('127.0.0.1', int(valid_parameters[4])))
 
-            time.sleep(QUANTUM_SECONDS)
+            time.sleep(LONG_PAUSE)
 
             response = command_sock.recvfrom(100)
             command_sock.close()
@@ -152,8 +153,6 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[1]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
-
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(b'TITLE', ('127.0.0.1', int(valid_parameters[4])))
             response = sock.recvfrom(1000)
@@ -166,8 +165,6 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
-
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             for _ in range(0, 10000):
                 command = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(random.randint(4, 6)))
@@ -183,8 +180,6 @@ class TestCommands(unittest.TestCase):
         valid_parameters = VALID_ARGS()[0]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
-
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             for _ in range(0, 10000):
                 sock.sendto(b'PAUSE', ('127.0.0.1', int(valid_parameters[4])))
@@ -198,6 +193,12 @@ class TestCommands(unittest.TestCase):
 
 
 class TestBehaviour(unittest.TestCase):
+    def assertExitFailure(self, program):
+        line = program.communicate(timeout=QUANTUM_SECONDS)[1]
+        self.assertTrue(line)
+        self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+
+
     def assertAllZ(self, filename):
         with open(filename, 'r') as f:
             self.assertEqual(len(f.read().replace('Z', '')), 0)
@@ -207,26 +208,24 @@ class TestBehaviour(unittest.TestCase):
         valid_parameters = VALID_ARGS()[2]
 
         with player_context(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as program:
-            time.sleep(PLAYER_BOOT_SECONDS) # lepiej poczekac, bo dziwne akcje odwala...
-
-            # sprawdzamy czy sie plik napelnia
+            # check if file is filling up
             size = os.path.getsize(valid_parameters[3])
             time.sleep(QUANTUM_SECONDS)
             self.assertNotEqual(size, os.path.getsize(valid_parameters[3]))
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(b'PAUSE', ('127.0.0.1', int(valid_parameters[4])))
-            time.sleep(QUANTUM_SECONDS) # niech złapie komende
+            time.sleep(QUANTUM_SECONDS) # wait for player to parse command
 
-            # sprawdzamy czy plik przestal sie naplecia
+            # check if file has stopped filling up
             size = os.path.getsize(valid_parameters[3])
             time.sleep(QUANTUM_SECONDS)
             self.assertEqual(size, os.path.getsize(valid_parameters[3]))
 
             sock.sendto(b'PLAY', ('127.0.0.1', int(valid_parameters[4])))
-            time.sleep(QUANTUM_SECONDS) # niech złapie komende
+            time.sleep(QUANTUM_SECONDS) # wait for player to parse command
 
-            # sprawdzamy czy znowu plik sie napelnia
+            # check if file is filling up again
             size = os.path.getsize(valid_parameters[3])
             time.sleep(QUANTUM_SECONDS)
             self.assertNotEqual(size, os.path.getsize(valid_parameters[3]))
@@ -241,20 +240,14 @@ class TestBehaviour(unittest.TestCase):
         valid_parameters = VALID_ARGS()[4]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             time.sleep(WAIT_TIMEOUT)
-
-            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-            self.assertTrue(line)
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+            self.assertExitFailure(program)
 
     def test_invalid_response_streamer(self):
         valid_parameters = VALID_ARGS()[4]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             sock.send(b'ICY 404 OK\r\n')
             sock.send(b'\r\n')
-
-            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-            self.assertTrue(line)
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+            self.assertExitFailure(program)
 
     def test_saving_data_without_meta(self):
         valid_parameters = VALID_ARGS()[6]
@@ -265,12 +258,10 @@ class TestBehaviour(unittest.TestCase):
             for _ in range(0, 1000):
                 sock.send(b'Z' * 16)
 
-            time.sleep(QUANTUM_SECONDS) # flush can take a while :C
+            time.sleep(LONG_PAUSE) # flush can take a while :C
             self.assertEqual(os.path.getsize(valid_parameters[3]), 16000)
             self.assertAllZ(valid_parameters[3])
 
-            program.kill()
-            program.wait()
             os.remove(valid_parameters[3])
 
     def test_saving_data_with_zerometa(self):
@@ -283,12 +274,10 @@ class TestBehaviour(unittest.TestCase):
             for _ in range(0, 1000):
                 sock.send(((b'Z' * 16) + (b'\x00')))
 
-            time.sleep(QUANTUM_SECONDS)
+            time.sleep(LONG_PAUSE)
             self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 1000)
             self.assertAllZ(valid_parameters[3])
 
-            program.kill()
-            program.wait()
             os.remove(valid_parameters[3])
 
 
@@ -302,19 +291,17 @@ class TestBehaviour(unittest.TestCase):
             for _ in range(0, 1000):
                 sock.send(((b'Z' * 16) + (b'\x02') + b"StreamTitle='title of the song';"))
 
-            time.sleep(QUANTUM_SECONDS)
+            time.sleep(LONG_PAUSE)
             self.assertEqual(os.path.getsize(valid_parameters[3]), 16 * 1000)
             self.assertAllZ(valid_parameters[3])
 
-            program.kill()
-            program.wait()
             os.remove(valid_parameters[3])
 
     def test_server_close_connection_when_header(self):
         valid_parameters = VALID_ARGS()[5]
-        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
-            sock.close()
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
+            sock.shutdown(socket.SHUT_WR)
+            self.assertExitFailure(program)
 
     def test_server_close_connection_when_sending_data(self):
         valid_parameters = VALID_ARGS()[5]
@@ -324,7 +311,7 @@ class TestBehaviour(unittest.TestCase):
             sock.send(b'\r\n')
             sock.send(b'Z' * 12)
 
-            sock.close()
+            sock.shutdown(socket.SHUT_WR)
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
     def test_server_close_connection_when_metadata(self):
@@ -337,7 +324,7 @@ class TestBehaviour(unittest.TestCase):
             sock.send(b'\x50')
             sock.send(b"StreamTitle='title of the song';")
 
-            sock.close()
+            sock.shutdown(socket.SHUT_WR)
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
 
@@ -345,10 +332,7 @@ class TestBehaviour(unittest.TestCase):
         valid_parameters = VALID_ARGS()[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
             time.sleep(WAIT_TIMEOUT)
-
-            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-            self.assertTrue(line)
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+            self.assertExitFailure(program)
 
     def test_timeout_when_sending_data(self):
         valid_parameters = VALID_ARGS()[5]
@@ -359,10 +343,7 @@ class TestBehaviour(unittest.TestCase):
             sock.send(b'Z' * 12)
 
             time.sleep(WAIT_TIMEOUT)
-
-            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-            self.assertTrue(line)
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+            self.assertExitFailure(program)
 
     def test_timeout_when_metadata(self):
         valid_parameters = VALID_ARGS()[5]
@@ -375,10 +356,7 @@ class TestBehaviour(unittest.TestCase):
             sock.send(b"StreamTitle='title of the song';")
 
             time.sleep(WAIT_TIMEOUT)
-
-            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
-            self.assertTrue(line)
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+            self.assertExitFailure(program)
 
     def test_metadata_requested(self):
         valid_parameters = VALID_ARGS()[5]
