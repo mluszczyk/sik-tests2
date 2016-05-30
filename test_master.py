@@ -1,3 +1,4 @@
+
 import contextlib
 import os
 import subprocess
@@ -78,10 +79,10 @@ class TestArguments(unittest.TestCase):
 
 class TestCommands(unittest.TestCase):
     def assertOK(self, line):
-        splited = line.split()
-        self.assertEqual(len(splited), 2)
-        self.assertEqual(splited[0], b"OK")
-        return splited[1]
+        split = line.split()
+        self.assertEqual(len(split), 2)
+        self.assertEqual(split[0], b"OK")
+        return split[1]
 
     def test_wrong_command(self):
         with master_and_mock_client() as client:
