@@ -51,10 +51,10 @@ def streamer_server(*args, **kwargs):
 
 
 class TestArguments(unittest.TestCase):
-    def assertExitFailure(self, program):
+    def assertExitFailure(self, program, message=None):
         line = program.communicate(timeout=QUANTUM_SECONDS)[1]
         self.assertTrue(line)
-        self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+        self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1, message)
 
     def test_valid(self):
         with player_context(VALID_ARGS()[3], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
@@ -85,7 +85,7 @@ class TestArguments(unittest.TestCase):
                 tmp_parameters[num] = wrong_param
 
                 with player_context(tuple(tmp_parameters), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
-                    self.assertExitFailure(program)
+                    self.assertExitFailure(program, tmp_parameters)
 
 class TestCommands(unittest.TestCase):
     def test_quit_command(self):
