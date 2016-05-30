@@ -302,7 +302,7 @@ class TestBehaviour(unittest.TestCase):
     def test_server_close_connection_when_header(self):
         valid_parameters = VALID_ARGS()[5]
         with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as (sock, program):
-            sock.close()
+            sock.shutdown(socket.SHUT_RDWR)
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_server_close_connection_when_sending_data(self):
@@ -313,7 +313,7 @@ class TestBehaviour(unittest.TestCase):
             sock.send(b'\r\n')
             sock.send(b'Z' * 12)
 
-            sock.close()
+            sock.shutdown(socket.SHUT_RDWR)
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
     def test_server_close_connection_when_metadata(self):
@@ -326,7 +326,7 @@ class TestBehaviour(unittest.TestCase):
             sock.send(b'\x50')
             sock.send(b"StreamTitle='title of the song';")
 
-            sock.close()
+            sock.shutdown(socket.SHUT_RDWR)
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
 
