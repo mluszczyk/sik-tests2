@@ -4,13 +4,15 @@ import os
 import subprocess
 import time
 import unittest
+import datetime
 from random import randint
 
 from choose_port import choose_port
-from common import mock_client, QUANTUM_SECONDS, BINARY_PATH, VALID_ARGS
+from common import mock_client, QUANTUM_SECONDS, BINARY_PATH, VALID_ARGS, LONG_PAUSE
 
 PLAYER_HOSTNAME = b"localhost"
 MASTER_PATH = os.path.join(BINARY_PATH, "master")
+SKIP_LONG_TESTS = False
 
 
 class Master(subprocess.Popen):
@@ -132,15 +134,16 @@ class TestCommands(unittest.TestCase):
         sequences = (b"\xff\xfe\x06", b"\xff\xf5", b"\xff\xf7")
         with master_and_mock_client() as client:
             args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
+            last_idx = 0
             for seq in sequences:
-                index = randint(0, len(args))
+                index = randint(last_idx, len(args))
                 args = args[0:index] + seq + args[index:]
+                last_idx = index + len(seq)
             client.send(b"START %s %s\n" % (PLAYER_HOSTNAME, args))
             player_id = self.assertOK(client.readline())
 
+    @unittest.skipIf(PLAYER_HOSTNAME != b"localhost", "Requires execution on localhost")
     def test_client_crash(self):
-        if PLAYER_HOSTNAME != b"localhost":
-            return
         with master_and_mock_client() as client:
             args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
             client.send(b"START %s %s\n" % (PLAYER_HOSTNAME, args))
@@ -149,6 +152,113 @@ class TestCommands(unittest.TestCase):
             self.assertEqual(subprocess.call(["killall", "player"]), 0)
             line = client.readline()
             self.assertTrue(line.startswith(b"ERROR %s" % player_id))
+
+    def test_at_command(self):
+        with master_and_mock_client() as client:
+            args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
+            client.send(b"AT 21.12 100 %s %s\n" % (PLAYER_HOSTNAME, args))
+            self.assertOK(client.readline())
+
+    def test_at_negative_duration(self):
+        with master_and_mock_client() as client:
+            args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
+            client.send(b"AT 21.12 -1 %s %s\n" % (PLAYER_HOSTNAME, args))
+            self.assertTrue(client.readline().startswith(b"ERROR"))
+
+    def test_at_invalid_time(self):
+        with master_and_mock_client() as client:
+            args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
+            client.send(b"AT 24.12 10 %s %s\n" % (PLAYER_HOSTNAME, args))
+            self.assertTrue(client.readline().startswith(b"ERROR"))
+
+    def test_at_invalid_time2(self):
+        with master_and_mock_client() as client:
+            args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
+            client.send(b"AT 1.62 10 %s %s\n" % (PLAYER_HOSTNAME, args))
+            self.assertTrue(client.readline().startswith(b"ERROR"))
+
+    def test_at_invalid_time3(self):
+        with master_and_mock_client() as client:
+            args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
+            client.send(b"AT a1.32 10 %s %s\n" % (PLAYER_HOSTNAME, args))
+            self.assertTrue(client.readline().startswith(b"ERROR"))
+
+    def test_at_invalid_time4(self):
+        with master_and_mock_client() as client:
+            args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
+            client.send(b"AT 1:22 10 %s %s\n" % (PLAYER_HOSTNAME, args))
+            self.assertTrue(client.readline().startswith(b"ERROR"))
+
+    def test_at_invalid_time5(self):
+        with master_and_mock_client() as client:
+            args = bytes(" ".join(VALID_ARGS()[8]), "utf-8")
+            client.send(b"AT 1.a22 10 %s %s\n" % (PLAYER_HOSTNAME, args))
+            self.assertTrue(client.readline().startswith(b"ERROR"))
+
+    @unittest.skipIf(SKIP_LONG_TESTS, "Long test")
+    @unittest.skipIf(PLAYER_HOSTNAME != b"localhost", "Requires execution on localhost")
+    def test_at(self):
+        with master_and_mock_client() as client:
+            arg_list = VALID_ARGS()[8]
+            output_path = os.path.expanduser(os.path.join("~", arg_list[3]))
+            if os.path.exists(output_path):
+                os.remove(output_path)
+
+            # Launch client
+            now = datetime.datetime.now()
+            starttime = datetime.datetime(now.year, now.month, now.day, now.hour, now.minute) + \
+                    datetime.timedelta(minutes=1)
+            time_str = b"%d.%d" % (starttime.hour, starttime.minute)
+            args = bytes(" ".join(arg_list), "utf-8")
+            client.send(b"AT %s 10 %s %s\n" % (time_str, PLAYER_HOSTNAME, args))
+            player_id = self.assertOK(client.readline())
+            to_wait = starttime - now
+            to_wait_s = int(to_wait.seconds + (to_wait.microseconds / 1e6) + 2)
+
+            if to_wait_s > 5:
+                client.send(b"PAUSE %s\n" % player_id)
+                response = client.readline()
+                self.assertTrue(response.startswith(b"ERROR %s" % player_id))
+            else:
+                print("\nIgnoring some tests, because there's not enough wait time")
+
+            print("")
+            while to_wait_s > 0:
+                print("Waiting %d         \r" % to_wait_s, end="")
+                time.sleep(1)
+                to_wait_s -= 1
+            print("Running                ")
+            self.assertTrue(os.path.exists(output_path))
+
+            # Check it's filling up
+            initial_size = os.path.getsize(output_path)
+            time.sleep(LONG_PAUSE)
+            size = os.path.getsize(output_path)
+            self.assertTrue(size > initial_size)
+
+            # Check PAUSE works
+            client.send(b"PAUSE %s\n" % player_id)
+            time.sleep(QUANTUM_SECONDS)
+            self.assertEqual(self.assertOK(client.readline()), player_id)
+            initial_size= os.path.getsize(output_path)
+            time.sleep(LONG_PAUSE)
+            size = os.path.getsize(output_path)
+            self.assertEqual(size, initial_size)
+
+            # Check PLAY works
+            initial_size = os.path.getsize(output_path)
+            client.send(b"PLAY %s\n" % player_id)
+            time.sleep(LONG_PAUSE)
+            self.assertEqual(self.assertOK(client.readline()), player_id)
+            size = os.path.getsize(output_path)
+            self.assertTrue(size > initial_size)
+
+            # Check QUIT works
+            initial_size = os.path.getsize(output_path)
+            client.send(b"QUIT %s\n" % player_id)
+            self.assertEqual(self.assertOK(client.readline()), player_id)
+            time.sleep(LONG_PAUSE)
+            self.assertEqual(subprocess.check_output(["pidof", "player"]), b"")
 
 
 class TestIntegration(unittest.TestCase):
