@@ -54,7 +54,7 @@ class TestArguments(unittest.TestCase):
     def assertExitFailure(self, program):
         line = program.communicate(timeout=QUANTUM_SECONDS)[1]
         self.assertTrue(line)
-        self.assertIn(program.wait(timeout=QUANTUM_SECONDS), [-11, 1])
+        self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_valid(self):
         with player_context(VALID_ARGS()[3], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
@@ -196,7 +196,7 @@ class TestBehaviour(unittest.TestCase):
     def assertExitFailure(self, program):
         line = program.communicate(timeout=QUANTUM_SECONDS)[1]
         self.assertTrue(line)
-        self.assertIn(program.wait(timeout=QUANTUM_SECONDS), [-11, 1])
+        self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
 
     def assertAllZ(self, filename):
