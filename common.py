@@ -11,6 +11,7 @@ cp = configparser.ConfigParser()
 cp.read([os.path.join(BASE_DIR, "defaults.cfg"), os.path.join(BASE_DIR, "config.cfg")])
 
 WAIT_TIMEOUT = 5  # never wait longer than this and raise exception
+LONG_PAUSE = 1.5
 QUANTUM_SECONDS = 0.2
 BINARY_PATH = cp.get("tests", "binary_path")
 PARAMS = 6
