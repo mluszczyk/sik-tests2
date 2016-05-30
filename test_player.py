@@ -27,8 +27,11 @@ def player_context(*args, **kwargs):
     try:
         yield program
     finally:
-        program.kill()
-        program.wait()
+        try:
+            program.kill()
+            program.wait()
+        except:
+            pass
 
 @contextlib.contextmanager
 def streamer_server(*args, **kwargs):
@@ -57,7 +60,7 @@ class TestArguments(unittest.TestCase):
         with player_context((), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
             line = program.communicate(timeout=QUANTUM_SECONDS)[1]
             self.assertTrue(line)
-            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
+            self.assertNotEqual(program.wait(timeout=QUANTUM_SECONDS), 0)
 
     def test_wrong_number_of_parameters(self):
         for num in range(1, PARAMS):
