@@ -44,12 +44,19 @@ class TestArguments(unittest.TestCase):
             time.sleep(QUANTUM_SECONDS)
         line = program.stdout.readline()
         self.assertTrue(line)
+        self.assertNotIn(b"0", line.split())
 
     def test_one_parameter(self):
         with master_context(("50000",), stdout=subprocess.PIPE) as program:
             time.sleep(QUANTUM_SECONDS)
         line = program.stdout.readline()
         self.assertEqual(line, b'')
+
+    def test_zero(self):
+        with master_context(("0",), stderr=subprocess.PIPE) as program:
+            line = program.communicate(timeout=QUANTUM_SECONDS)[1]
+            self.assertTrue(line)
+            self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
     def test_wrong_number(self):
         with master_context(("234", "234"), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as program:
