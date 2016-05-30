@@ -380,5 +380,25 @@ class TestBehaviour(unittest.TestCase):
             self.assertTrue(line)
             self.assertEqual(program.wait(timeout=QUANTUM_SECONDS), 1)
 
+    def test_metadata_requested(self):
+        valid_parameters = VALID_ARGS()[5]
+        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
+            data = sock.recv(1000)
+            self.assertIn(b"Icy-MetaData:1", data)
+
+    def test_no_metadata_requested(self):
+        valid_parameters = VALID_ARGS()[4]
+        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
+            data = sock.recv(1000)
+            self.assertIn(b"Icy-MetaData:0", data)
+
+
+    def test_requests_crlf(self):
+        """HTTP header should have lines ending with CRLF."""
+        valid_parameters = VALID_ARGS()[5]
+        with streamer_server(valid_parameters, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as (sock, program):
+            data = sock.recv(1000)
+            self.assertIn(b"\r\n", data)
+
 if __name__ == '__main__':
     unittest.main(warnings='ignore')
